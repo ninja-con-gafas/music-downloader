@@ -1,2 +1,5 @@
 pandas
 streamlit
+yt-dlp
+
+git+https://github.com/ninja-con-gafas/google.git
