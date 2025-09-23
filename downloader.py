@@ -14,18 +14,6 @@ logger = getLogger(__name__)
 DOWNLOADS_PATH = path.expanduser("~/Downloads")
 makedirs(DOWNLOADS_PATH, exist_ok=True)
 
-def _find_existing_audio_path(video_id: str) -> str:
-    try:
-        for filename in listdir(DOWNLOADS_PATH):
-            if filename.endswith('.mp3'):
-                file_video_id: str = filename[:-4].split()[-1]
-                if file_video_id == video_id:
-                    return path.join(DOWNLOADS_PATH, filename)
-    except Exception:
-        # To be implemented
-        pass
-    return None
-
 def download_shazams_with_session(shazams: DataFrame, session_name: str = None) -> str:
     """
     Process Shazam data and initiate downloads with session management.
@@ -48,7 +36,7 @@ def download_shazams_with_session(shazams: DataFrame, session_name: str = None) 
             name=session_name,
             metadata={"source": "shazam", "total_tracks": len(shazams)})
         
-        logger.info(f"Created session {session.session_id} for Shazam downloads")
+        logger.info(f"Created session {session.session_id} for Shazam downloads.")
 
         logger.info("Searching YouTube URLs for Shazam tracks.")
         shazams = shazams.assign(
@@ -89,22 +77,41 @@ def download_shazams_with_session(shazams: DataFrame, session_name: str = None) 
         raise
 
 def download_wrapper(item: DownloadItem, progress_callback, error_callback, completion_callback) -> bool:
+    """
+    Wrapper for downloading YouTube audio as MP3. Skips existing files, otherwise downloads, reports progress, 
+    validates the result, and triggers callbacks.  
+
+    Parameters:
+        item (DownloadItem): The download item containing metadata (e.g., `video_id`, `name`, `url`).
+        progress_callback (Callable[[float], None]): A callback to report progress percentage.
+        error_callback (Callable[[str], None]): A callback to handle error messages.
+        completion_callback (Callable[[str], None]): A callback to signal successful completion
+            with the path of the downloaded MP3 file.
+
+    Returns:
+        bool: True if the download succeeds or the file already exists, False otherwise.
+
+    Raises:
+        Exception: Propagates unexpected errors that occur during the download process.
+    """
+    
     try:
         if is_audio_downloaded(item.metadata['video_id']):
             logger.info(f"Audio already exists for {item.name}")
-            file_path = _find_existing_audio_path(item.metadata['video_id'])
+            file_path = find_existing_audio_path(item.metadata['video_id'])
             completion_callback(file_path)
             return True
         
         progress_callback(5.0)
         
-        download_audio_as_mp3(
-            download_path=DOWNLOADS_PATH,
-            file_name=item.name,
-            url=item.url)
+        logger.info(f"Downloading {item.name} from {item.url}")
+        download_audio_as_mp3(download_path=DOWNLOADS_PATH,
+                              file_name=item.name,
+                              url=item.url)
         
         file_path: str = path.join(DOWNLOADS_PATH, f"{item.name}.mp3")
         if path.exists(file_path):
+            logger.info(f"{item.name} downloaded as {file_path}")
             completion_callback(file_path)
             return True
         else:
@@ -123,6 +130,7 @@ def download_youtube_with_session(urls: DataFrame, session_name: str = None) -> 
     Parameters:
         urls (DataFrame): DataFrame containing YouTube video URLs.
         session_name (str): Optional name for the session.
+
     Returns:
         str: The session ID for tracking progress
     """
@@ -137,7 +145,7 @@ def download_youtube_with_session(urls: DataFrame, session_name: str = None) -> 
             name=session_name,
             metadata={"source": "youtube", "total_urls": len(urls)})
         
-        logger.info(f"Created session {session.session_id} for YouTube downloads")
+        logger.info(f"Created session {session.session_id} for YouTube downloads.")
 
         urls = (urls.assign(video_id=lambda x: x['url'].apply(get_video_id))
         .drop_duplicates(subset=['video_id'])
@@ -216,15 +224,43 @@ def extract_youtube_urls(file_path: str) -> DataFrame:
         DataFrame: A DataFrame containing the unique YouTube URLs.
     """
 
+    YOUTUBE_URL_PATTERN = r"^((?:https?:)?\/\/)?((?:www|m|music)\.)?((?:youtube(?:-nocookie)?\.com|youtu\.be))(\/(?:[\w\-]+\?v=|embed\/|live\/|v\/)?)([\w\-]+)(\S+)?$"
+
     logger.info(f"Extracting and validating YouTube URLs from: {file_path}")
+
     try:
-        # To be implemented
         return (read_csv(filepath_or_buffer=file_path)
-            .drop_duplicates(subset=["url"])
-            .sort_values(by=["url"]))
+        .assign(url=lambda df: df["url"].astype(str).str.strip())
+        .loc[lambda df: df["url"].apply(lambda u: bool(re.match(YOUTUBE_URL_PATTERN, u)))]
+        .drop_duplicates(subset=["url"])
+        .sort_values(by=["url"])
+        .reset_index(drop=True))
     except Exception as e:
         logger.error(f"Failed to extract YouTube URLs: {str(e)}")
         raise Exception(f"Failed to extract YouTube URLs: {str(e)}")
+
+def find_existing_audio_path(video_id: str) -> str:
+    """
+    Search for an existing audio file (.mp3) matching the given YouTube video ID.
+
+    Parameters:
+        video_id (str): The YouTube video identifier.
+
+    Returns:
+        str | None: Full path to the matching MP3 file if found, otherwise None.
+    """
+
+    try:
+        for filename in listdir(DOWNLOADS_PATH):
+            if filename.endswith('.mp3'):
+                file_video_id: str = filename[:-4].split()[-1]
+                if file_video_id == video_id:
+                    file_path = path.join(DOWNLOADS_PATH, filename)
+                    logger.info(f"Found audio file for video_id {video_id} at {file_path}")
+                    return file_path
+    except Exception as e:
+        logger.error(f"Error searching audio path: {str(e)}")
+    return None
 
 def is_audio_downloaded(video_id: str) -> bool:
     """
@@ -243,7 +279,7 @@ def is_audio_downloaded(video_id: str) -> bool:
                 file_video_id: str = filename[:-4].split()[-1]
                 if file_video_id == video_id:
                     return True
-        logger.info(f"No existing audio found for video_id {video_id}.")
+        logger.info(f"No existing audio found for video_id {video_id}")
         return False
     except Exception as e:
         logger.error(f"Error checking audio for video_id {video_id}: {str(e)}")
