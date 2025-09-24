@@ -62,9 +62,6 @@ def set_sidebar() -> None:
     with sidebar.expander("About"):
         text("Download songs identified by Shazam or from YouTube with correct metadata tagging.")
 
-    if sidebar.button("Refresh"):
-        rerun()
-
     sidebar.markdown("---")
     sidebar.write(f"© {datetime.now().year} Music Downloader")
 
@@ -90,7 +87,7 @@ def start_download(download_type: str, records: DataFrame):
                 
                 success(f"Session started: `{session_id}`")
                 session_state.active_sessions[session_id] = session_name
-                balloons()  
+                balloons()
         except Exception as e:
             error(f"Failed to start download: {str(e)}")
 
@@ -174,7 +171,12 @@ def set_tab_progress() -> None:
     all_sessions: List[Dict] = get_all_session_summaries()
     active_sessions: List[Dict] = [session for session in all_sessions if session['status'] in ['pending', 'running']]
     if active_sessions:
-        write(f"Monitoring {len(active_sessions)} active sessions:")
+        column_header, column_refresh_button = columns([4, 1])
+        with column_header:
+            write(f"Monitoring {len(active_sessions)} active sessions:")
+        with column_refresh_button:
+            if button("Refresh"):
+                rerun()
         for session in active_sessions:
             block: DeltaGenerator = empty()
             with block.container():
