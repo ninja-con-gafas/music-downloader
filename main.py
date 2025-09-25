@@ -39,6 +39,35 @@ def get_all_session_summaries() -> List[Dict[str, Any]]:
     sessions: List[DownloadSession] = session_state.session_manager.get_all_sessions()
     return [session.get_progress_summary() for session in sessions]
 
+def icon_anchor(hyperlink: str, icon_url: str, border_radius: int=8, height: int=30, width: int=30) -> str:
+    """
+    Generate an HTML button-like anchor element with an icon background.
+
+    Parameters:
+        hyperlink (str): The URL to which the button should redirect when clicked.
+        icon_url (str): The URL of the icon image to be displayed as the button background.
+        border_radius (int, optional): Radius of the button corners in pixels. Defaults to 8.
+        height (int, optional): Height of the button in pixels. Defaults to 30.
+        width (int, optional): Width of the button in pixels. Defaults to 30.
+
+    Returns:
+        str: A formatted HTML string representing the icon-styled clickable button.
+    """
+
+    return f"""
+    <a href="{hyperlink}" target="_blank" style="
+        display: inline-block;
+        background: url('{icon_url}') no-repeat center center;
+        background-size: contain;
+        width: {width}px;
+        height: {height}px;
+        border-radius: {border_radius}px;
+        border: none;
+        cursor: pointer;
+        ">
+    </a>
+    """
+
 def set_session_manager() -> None:
     if 'session_manager' not in session_state:
         session_state.session_manager = SessionManager(max_concurrent_sessions=1, 
@@ -63,6 +92,14 @@ def set_sidebar() -> None:
         text("Download songs identified by Shazam or from YouTube with correct metadata tagging.")
 
     sidebar.markdown("---")
+    sidebar.markdown(
+        f"""
+        Developed by [ninja-con-gafas](https://github.com/ninja-con-gafas). 
+        Licensed under [AGPL-3.0](https://github.com/ninja-con-gafas/music-downloader?tab=AGPL-3.0-1-ov-file).
+        {icon_anchor("https://github.com/ninja-con-gafas/music-downloader",
+                                 "https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png")}
+        """,
+        unsafe_allow_html=True)
     sidebar.write(f"© {datetime.now().year} Music Downloader")
 
 def set_tabs() -> None:
