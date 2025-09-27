@@ -1,5 +1,6 @@
 mutagen
 pandas
+shazamio
 streamlit
 yt-dlp
 

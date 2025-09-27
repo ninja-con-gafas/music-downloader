@@ -1,3 +1,4 @@
+import asyncio
 import datetime
 import os
 import re
@@ -7,7 +8,7 @@ from logging import basicConfig, getLogger, INFO
 from pandas import DataFrame, read_csv
 from streamlit import session_state
 from SessionManager import DownloadItem, DownloadSession
-from tagger import apply_metadata, search_shazam
+from tagger import apply_metadata, recognize_music, search_shazam
 from typing import Any, Dict
 
 basicConfig(level=INFO)
@@ -117,9 +118,25 @@ def download_wrapper(item: DownloadItem, progress_callback, error_callback, comp
         if os.path.exists(file_path):
             logger.info(f"{item.name} downloaded as {file_path}")
             completion_callback(file_path)
-            tags: Dict[str, Any] = item.metadata.get("tags")[0]
+            tags: Dict[str, Any] = item.metadata.get("tags")
             if tags:
-                apply_metadata(tags, file_path)
+                logger.info(f"Applying metadata found on the Shazam for the music {item.name}")
+                apply_metadata(tags[0], file_path)
+            else:
+                logger.info(f"Recognizing the music {item.name} using Shazam")
+                result: Dict[str, Any] = asyncio.run(recognize_music(file_path))
+                if result:
+                    logger.info(f"Found a match for {item.name} as {result.get("url")}")
+                    term: str = f"{result.get("subtitle")} {result.get("title")}"
+                    item.metadata["tags"] = search_shazam(term, "songs")
+                    tags: Dict[str, Any] = item.metadata.get("tags")
+                    if tags:
+                        logger.info(f"Applying metadata found on the Shazam for the music {item.name}")
+                        apply_metadata(tags[0], file_path)
+                else:
+                    logger.warning(f"No metadata found for {item.name}")
+                    item.metadata["tags"] = None
+                    logger.warning(f"Failed to apply metadata to {item.name} using Shazam.")
             return True
         else:
             error_callback(f"Download completed but file not found: {file_path}")

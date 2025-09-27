@@ -3,6 +3,7 @@ import requests
 from logging import basicConfig, getLogger, INFO
 from mutagen.id3 import APIC, ID3, TALB, TCOM, TCON, TDRC, TIT2, TPE1, TRCK
 from mutagen.mp3 import MP3
+from shazamio import Shazam
 from typing import Any, Dict, List
 
 basicConfig(level=INFO)
@@ -144,8 +145,31 @@ def search_shazam(term: str, types: str, limit: int = 1, country_code: str = "IN
         if data is not None:
             return data
         logger.warning(f"No data found for {types} {term} in response.")
-        return
+        return []
     except (ValueError, KeyError, TypeError) as e:
         logger.warning(f"Failed to parse JSON or extract data for {types} {term}: {e}")
     except requests.exceptions.RequestException as e:
         logger.exception(f"Shazam API request failed: {e}")
+
+async def recognize_music(file_path: str) -> Dict[str, Any]:
+    """
+    Recognise a music by analysing a local audio file using Shazamio.
+
+    Parameters
+        file_path (str): The path to the audio file.
+
+    Returns
+        List[Dict[str, Any]]: List containing recognised music information.
+    """
+
+    logger.info(f"Recognising music from file: {file_path}")
+    try:
+        shazam = Shazam()
+        result = await shazam.recognize(file_path)
+        if result:
+            return result.get("track")
+        logger.warning(f"No result returned for file: {file_path}")
+        return
+    except Exception as e:
+        logger.error(f"Error recognising music: {e}")
+        return

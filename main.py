@@ -1,7 +1,7 @@
 """
 Music Downloader.
 
-A web-based application to download song identified by Shazam or from YouTube with correct metadata tagging.
+A web-based application to download music identified by Shazam or from YouTube with correct metadata tagging.
 """
 
 import os
@@ -114,7 +114,7 @@ def set_sidebar() -> None:
             metric("Total Sessions", statistics['total_sessions'])
 
     with sidebar.expander("About"):
-        text("Download songs identified by Shazam or from YouTube with correct metadata tagging.")
+        text("Download musics identified by Shazam or from YouTube with correct metadata tagging.")
 
     sidebar.markdown("---")
     sidebar.markdown(
