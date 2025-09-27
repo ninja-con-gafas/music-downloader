@@ -1,3 +1,4 @@
+mutagen
 pandas
 streamlit
 yt-dlp

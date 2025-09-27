@@ -7,6 +7,8 @@ from os import listdir, makedirs, path
 from pandas import DataFrame, read_csv
 from streamlit import session_state
 from SessionManager import DownloadItem, DownloadSession
+from tagger import apply_metadata, search_shazam
+from typing import Any, Dict
 
 basicConfig(level=INFO)
 logger = getLogger(__name__)
@@ -40,7 +42,7 @@ def download_shazams_with_session(shazams: DataFrame, session_name: str = None) 
 
         logger.info("Searching YouTube URLs for Shazam tracks.")
         shazams = shazams.assign(
-            url=lambda x: x.apply(lambda row: search_youtube(f"{row['title']} {row['artist']} lyrics")[0], axis=1),
+            url=lambda x: x.apply(lambda row: search_youtube(f"official {row['title']} {row['artist']} lyrics")[0], axis=1),
             video_id=lambda x: x['url'].apply(get_video_id),
             file_name=lambda x: x.apply(lambda row: f"{row['title']} {row['artist']} {row['video_id']}", axis=1))
 
@@ -50,10 +52,12 @@ def download_shazams_with_session(shazams: DataFrame, session_name: str = None) 
                 name=row['file_name'],
                 url=row['url'],
                 metadata={
-                    "video_id": row['video_id'],
-                    "title": row['title'],
                     "artist": row['artist'],
-                    "source": "shazam"
+                    "source": "shazam",
+                    "tags": search_shazam(term=f"{row['artist']} {row['title']}",
+                                          types="songs"),
+                    "title": row['title'],
+                    "video_id": row['video_id'],
                 }
             )
             session.add_download(download_item)
@@ -102,7 +106,7 @@ def download_wrapper(item: DownloadItem, progress_callback, error_callback, comp
             completion_callback(file_path)
             return True
         
-        progress_callback(5.0)
+        progress_callback(50.0)
         
         logger.info(f"Downloading {item.name} from {item.url}")
         download_audio_as_mp3(download_path=DOWNLOADS_PATH,
@@ -113,6 +117,9 @@ def download_wrapper(item: DownloadItem, progress_callback, error_callback, comp
         if path.exists(file_path):
             logger.info(f"{item.name} downloaded as {file_path}")
             completion_callback(file_path)
+            tags: Dict[str, Any] = item.metadata.get("tags")[0]
+            if tags:
+                apply_metadata(tags, file_path)
             return True
         else:
             error_callback(f"Download completed but file not found: {file_path}")
