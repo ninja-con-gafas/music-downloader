@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
 from logging import basicConfig, getLogger, INFO
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List
 
 basicConfig(level=INFO)
 logger = getLogger(__name__)
@@ -44,14 +44,14 @@ class DownloadItem:
     Data model representing a downloadable item with its metadata, progress, and status.
 
     Attributes:
-        completed_at (Optional[datetime]): Timestamp when the download was completed.
-        error_message (Optional[str]): Error details if the download failed.
-        file_path (Optional[str]): Path to the downloaded file.
+        completed_at (datetime): Timestamp when the download was completed.
+        error_message (str): Error details if the download failed.
+        file_path (str): Path to the downloaded file.
         id (str): Unique identifier of the download item.
         metadata (Dict[str, Any]): Additional metadata related to the download.
         name (str): Human-readable name of the download item.
         progress (float): Progress of the download expressed as a fraction (0.0-100.0).
-        started_at (Optional[datetime]): Timestamp when the download started.
+        started_at (datetime): Timestamp when the download started.
         status (DownloadStatus): Current status of the download.
         url (str): Source URL of the downloadable item.
     """
@@ -59,12 +59,12 @@ class DownloadItem:
     id: str
     name: str
     url: str
-    completed_at: Optional[datetime] = None
-    error_message: Optional[str] = None
-    file_path: Optional[str] = None
+    completed_at: datetime = None
+    error_message: str = None
+    file_path: str = None
     metadata: Dict[str, Any] = field(default_factory=dict)
     progress: float = 0.0
-    started_at: Optional[datetime] = None
+    started_at: datetime = None
     status: DownloadStatus = field(default=DownloadStatus.QUEUED)
     
     def to_dict(self) -> Dict[str, Any]:
@@ -92,7 +92,7 @@ class DownloadSession:
     Data model representing a session that manages multiple downloads.
 
     Attributes:
-        completed_at (Optional[datetime]): Timestamp when the session completed.
+        completed_at (datetime): Timestamp when the session completed.
         completed_items (int): Number of successfully completed downloads.
         created_at (datetime): Timestamp when the session was created.
         downloads (List[DownloadItem]): List of download items in the session.
@@ -100,20 +100,20 @@ class DownloadSession:
         metadata (Dict[str, Any]): Additional metadata related to the session.
         name (str): Human-readable name of the session.
         session_id (str): Unique identifier of the session.
-        started_at (Optional[datetime]): Timestamp when the session started.
+        started_at (datetime): Timestamp when the session started.
         status (SessionStatus): Current status of the session.
         total_items (int): Total number of downloads in the session.
     """
 
     name: str
     session_id: str
-    completed_at: Optional[datetime] = None
+    completed_at: datetime = None
     completed_items: int = 0
     created_at: datetime = field(default_factory=datetime.now)
     downloads: List[DownloadItem] = field(default_factory=list)
     failed_items: int = 0
     metadata: Dict[str, Any] = field(default_factory=dict)
-    started_at: Optional[datetime] = None
+    started_at: datetime = None
     status: SessionStatus = field(default=SessionStatus.PENDING)
     total_items: int = 0
     
@@ -375,7 +375,7 @@ class SessionManager:
         return [session for session in self.sessions.values() 
                 if session.status in [SessionStatus.PENDING, SessionStatus.RUNNING]]
     
-    def get_session(self, session_id: str) -> Optional[DownloadSession]:
+    def get_session(self, session_id: str) -> DownloadSession:
         """
         Retrieve a session by its session ID.
 
@@ -383,7 +383,7 @@ class SessionManager:
             session_id (str): The session ID to look up.
 
         Returns:
-            Optional[DownloadSession]: The session if found, otherwise None.
+            DownloadSession: The session if found, otherwise None.
         """
         
         return self.sessions.get(session_id)
@@ -412,20 +412,20 @@ class SessionManager:
         }
     
     def update_download_item(self, session_id: str, item_id: str, 
-                           status: Optional[DownloadStatus] = None,
-                           progress: Optional[float] = None,
-                           error_message: Optional[str] = None,
-                           file_path: Optional[str] = None) -> None:
+                           status: DownloadStatus = None,
+                           progress: float = None,
+                           error_message: str = None,
+                           file_path: str = None) -> None:
         """
         Update the status, progress, error message, or file path of a download item within a session.
 
         Parameters:
             session_id (str): The session ID containing the download item.
             item_id (str): The ID of the download item to update.
-            status (Optional[DownloadStatus]): New status of the download item.
-            progress (Optional[float]): Progress percentage (0.0 to 100.0).
-            error_message (Optional[str]): Error message if any failure occurred.
-            file_path (Optional[str]): File path of the completed download.
+            status (DownloadStatus): New status of the download item.
+            progress (float): Progress percentage (0.0 to 100.0).
+            error_message (str): Error message if any failure occurred.
+            file_path (str): File path of the completed download.
         """
         
         if session_id in self.sessions:

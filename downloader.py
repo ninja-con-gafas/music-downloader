@@ -1,9 +1,9 @@
 import datetime
+import os
 import re
 import threading
 from google.youtube import download_audio_as_mp3, get_video_id, get_video_metadata, search_youtube
 from logging import basicConfig, getLogger, INFO
-from os import listdir, makedirs, path
 from pandas import DataFrame, read_csv
 from streamlit import session_state
 from SessionManager import DownloadItem, DownloadSession
@@ -13,8 +13,8 @@ from typing import Any, Dict
 basicConfig(level=INFO)
 logger = getLogger(__name__)
 
-DOWNLOADS_PATH = path.expanduser("~/Downloads")
-makedirs(DOWNLOADS_PATH, exist_ok=True)
+DOWNLOADS_PATH = os.path.expanduser("~/Downloads")
+os.makedirs(DOWNLOADS_PATH, exist_ok=True)
 
 def download_shazams_with_session(shazams: DataFrame, session_name: str = None) -> str:
     """
@@ -113,8 +113,8 @@ def download_wrapper(item: DownloadItem, progress_callback, error_callback, comp
                               file_name=item.name,
                               url=item.url)
         
-        file_path: str = path.join(DOWNLOADS_PATH, f"{item.name}.mp3")
-        if path.exists(file_path):
+        file_path: str = os.path.join(DOWNLOADS_PATH, f"{item.name}.mp3")
+        if os.path.exists(file_path):
             logger.info(f"{item.name} downloaded as {file_path}")
             completion_callback(file_path)
             tags: Dict[str, Any] = item.metadata.get("tags")[0]
@@ -258,11 +258,11 @@ def find_existing_audio_path(video_id: str) -> str:
     """
 
     try:
-        for filename in listdir(DOWNLOADS_PATH):
+        for filename in os.listdir(DOWNLOADS_PATH):
             if filename.endswith('.mp3'):
                 file_video_id: str = filename[:-4].split()[-1]
                 if file_video_id == video_id:
-                    file_path = path.join(DOWNLOADS_PATH, filename)
+                    file_path = os.path.join(DOWNLOADS_PATH, filename)
                     logger.info(f"Found audio file for video_id {video_id} at {file_path}")
                     return file_path
     except Exception as e:
@@ -281,7 +281,7 @@ def is_audio_downloaded(video_id: str) -> bool:
     """
 
     try:
-        for filename in listdir(DOWNLOADS_PATH):
+        for filename in os.listdir(DOWNLOADS_PATH):
             if filename.endswith('.mp3'):
                 file_video_id: str = filename[:-4].split()[-1]
                 if file_video_id == video_id:

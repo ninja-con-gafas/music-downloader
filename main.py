@@ -4,13 +4,15 @@ Music Downloader.
 A web-based application to download song identified by Shazam or from YouTube with correct metadata tagging.
 """
 
+import os
+import zipfile
 from datetime import datetime
-from downloader import (download_shazams_with_session, download_youtube_with_session, extract_shazams, 
+from downloader import (download_shazams_with_session, download_youtube_with_session, DOWNLOADS_PATH, extract_shazams,
                         extract_youtube_urls)
 from pandas import DataFrame
-from streamlit import (balloons, button, caption, columns, divider, empty, error, expander, file_uploader, header, 
-                       info, metric, markdown, rerun, selectbox, session_state, set_page_config, sidebar, spinner, 
-                       subheader, success, tabs, text, write)
+from streamlit import (balloons, button, caption, columns, divider, download_button, empty, error, expander,
+                       file_uploader, header, info, metric, markdown, rerun, selectbox, session_state, 
+                       set_page_config, sidebar, spinner, subheader, success, tabs, text, write)
 from streamlit.delta_generator import DeltaGenerator
 from streamlit.runtime.uploaded_file_manager import UploadedFile
 from SessionManager import DownloadSession, SessionAwareDownloadExecutor, SessionManager
@@ -34,6 +36,29 @@ def colored_metric(label, value, delta=None, color="black"):
             <div style='font-size:18px;'>{delta_coloured}</div>
         </div>
     """, unsafe_allow_html=True)
+
+def create_archive(download_session: DownloadSession, session_id: str):
+    downloads: List[Dict] = []
+    for download in download_session.downloads:
+        downloads.append({"id": download.id,
+                        "name": download.name,
+                        "url": download.url,
+                        "completed_at": download.completed_at,
+                        "error_message": download.error_message,
+                        "file_path": download.file_path,
+                        "metadata": download.metadata,
+                        "progress": download.progress,
+                        "started_at": download.started_at,
+                        "status": download.status})
+    records: DataFrame = DataFrame(downloads)
+    records.to_csv(f"{DOWNLOADS_PATH}/report_{session_id}.csv")
+    with zipfile.ZipFile(f"{DOWNLOADS_PATH}/{session_id}.zip", "w") as archive:
+        archive.write(f"{DOWNLOADS_PATH}/report_{session_id}.csv",
+                      arcname=f"report_{session_id}.csv")
+        for download in downloads:
+            if os.path.isfile(download.get("file_path")):
+                archive.write(download.get("file_path"), 
+                            arcname=os.path.basename(download.get("file_path")))
 
 def get_all_session_summaries() -> List[Dict[str, Any]]:
     sessions: List[DownloadSession] = session_state.session_manager.get_all_sessions()
@@ -175,6 +200,24 @@ def set_tab_history() -> None:
                     write(f"Failed: {session['failed_items']}")
                     write(f"Total Items: {session['total_items']}")
                     write(f"Completed: {session['completed_items']}")
+                    if button("Generate Archive", key=f"generate_archive_{session['session_id']}"):
+                        if os.path.exists(f"{DOWNLOADS_PATH}/{session['session_id']}.zip"):
+                            with open(f"{DOWNLOADS_PATH}/{session['session_id']}.zip", "rb") as archive_file:
+                                download_button(label="Download Archive",
+                                                data=archive_file,
+                                                file_name=os.path.basename(f"{DOWNLOADS_PATH}/{session['session_id']}.zip"),
+                                                mime="application/zip",
+                                                key=f"download_{session['session_id']}")
+                        else:
+                            with spinner("Archiving the files"):
+                                download_session = session_state.session_manager.get_session(session['session_id'])
+                                create_archive(download_session, session['session_id'])
+                            with open(f"{DOWNLOADS_PATH}/{session['session_id']}.zip", "rb") as archive_file:
+                                download_button(label="Download Archive",
+                                                data=archive_file,
+                                                file_name=os.path.basename(f"{DOWNLOADS_PATH}/{session['session_id']}.zip"),
+                                                mime="application/zip",
+                                                key=f"download_{session['session_id']}")
     else:
         info("No session history found. Complete some downloads to see history here.")
 
@@ -222,7 +265,7 @@ def set_tab_progress() -> None:
                 
                 with column_cancel_session:
                     if session['status'] in ['running', 'pending']:
-                        if button("Cancel", key=f"hist_cancel_{session['session_id']}"):
+                        if button("Cancel", key=f"cancel_{session['session_id']}"):
                             cancel_session(session['session_id'])
                             rerun()
                 
