@@ -102,32 +102,6 @@ def set_sidebar() -> None:
         unsafe_allow_html=True)
     sidebar.write(f"© {datetime.now().year} Music Downloader")
 
-def set_tabs() -> None:
-    tab_labels: List[str] = ["Downloads", "Progress", "History"]
-    tab_downloads, tab_progress, tab_history = tabs(tab_labels)
-    with tab_downloads:
-        set_tab_downloads()
-    with tab_progress:
-        set_tab_progress()
-    with tab_history:
-        set_tab_history()
-
-def start_download(download_type: str, records: DataFrame):
-    session_name = f"{download_type}_{datetime.now().strftime('%H:%M:%S')}"
-    if button("Start Download", type="primary", use_container_width=True):
-        try:
-            with spinner("Starting download session"):
-                if download_type == "Shazam":
-                    session_id = download_shazams_with_session(records, session_name)
-                if download_type == "YouTube":
-                    session_id = download_youtube_with_session(records, session_name)
-                
-                success(f"Session started: `{session_id}`")
-                session_state.active_sessions[session_id] = session_name
-                balloons()
-        except Exception as e:
-            error(f"Failed to start download: {str(e)}")
-
 def set_tab_downloads() -> None:
     download_type: str = selectbox("Choose download source:",
                                     ["Shazam", "YouTube"],
@@ -260,6 +234,32 @@ def set_tab_progress() -> None:
                 divider()
     else:
         info("No active sessions found. Start a download from the Downloads tab to see progress here.")
+
+def set_tabs() -> None:
+    tab_labels: List[str] = ["Downloads", "Progress", "History"]
+    tab_downloads, tab_progress, tab_history = tabs(tab_labels)
+    with tab_downloads:
+        set_tab_downloads()
+    with tab_progress:
+        set_tab_progress()
+    with tab_history:
+        set_tab_history()
+
+def start_download(download_type: str, records: DataFrame):
+    session_name = f"{download_type}_{datetime.now().strftime('%H:%M:%S')}"
+    if button("Start Download", type="primary", use_container_width=True):
+        try:
+            with spinner("Starting download session"):
+                if download_type == "Shazam":
+                    session_id = download_shazams_with_session(records, session_name)
+                if download_type == "YouTube":
+                    session_id = download_youtube_with_session(records, session_name)
+                
+                success(f"Session started: `{session_id}`")
+                session_state.active_sessions[session_id] = session_name
+                balloons()
+        except Exception as e:
+            error(f"Failed to start download: {str(e)}")
 
 set_page_config(page_title="Music Downloader",
                 page_icon="🎵",
